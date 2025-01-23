@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Planner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #34495e;
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        .category-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .category {
+            margin-bottom: 1.5rem;
+        }
+
+        .category-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-list {
+            list-style: none;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .add-button {
+            background: #27ae60;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.9rem;
+            width: auto;
+        }
+
+        .remove-button {
+            background: #e74c3c;
+        }
+
+        #myBag {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #e8f4f8;
+            border-radius: 5px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .loading::after {
+            content: "⋮";
+            animation: loading 1s infinite;
+        }
+
+        @keyframes loading {
+            0% { content: "⋮"; }
+            33% { content: "⋯"; }
+            66% { content: "⋰"; }
+            100% { content: "⋮"; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Travel Planner</h1>
+        <form id="travelForm">
+            <div class="form-group">
+                <label for="destination">Destination:</label>
+                <input type="text" id="destination" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="days">Number of Days:</label>
+                <input type="number" id="days" min="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="people">Number of People:</label>
+                <input type="number" id="people" min="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="activities">Planned Activities (optional):</label>
+                <textarea id="activities"></textarea>
+            </div>
+            
+            <button type="submit">Get Travel Recommendations</button>
+        </form>
+        
+        <div class="loading" id="loading">Getting recommendations...</div>
+        
+        <div id="myBag">
+            <h2>My Bag (<span id="bagCount">0</span> items)</h2>
+            <div id="bagItems"></div>
+        </div>
+
+        <div id="packingList" class="category-section"></div>
+    </div>
+
+    <script>
+        const API_KEY = 'g89mUCTG9jvFLgYgschQNxTY6Rx9f3wd';
+        let myBagItems = [];
+        
+        const categories = {
+            Clothing: [
+                'Warm Clothes', 'Layers', 'Waterproof Jacket', 'Comfortable Walking Shoes',
+                'Socks', 'Scarves and Gloves', 'Hats'
+            ],
+            Toiletries: [
+                'Toothbrush and Toothpaste', 'Soap/Body Wash', 'Shampoo and Conditioner',
+                'Deodorant', 'Moisturizer', 'Lip Balm', 'Sunscreen'
+            ],
+            Essentials: [
+                'ID Proof', 'Cash and Cards', 'Travel Documents', 'Map/GPS Device',
+                'First Aid Kit', 'Reusable Water Bottle', 'Snacks'
+            ],
+            Electronics: [
+                'Mobile Phone and Charger', 'Camera and Batteries', 'Power Bank',
+                'Travel Adapter'
+            ],
+            Miscellaneous: [
+                'Sunglasses', 'Small Backpack', 'Umbrella/Raincoat',
+                'Hand Sanitizer and Masks'
+            ]
+        };
+
+        function updateBag() {
+            const bagItems = document.getElementById('bagItems');
+            const bagCount = document.getElementById('bagCount');
+            
+            bagCount.textContent = myBagItems.length;
+            bagItems.innerHTML = myBagItems.map(item => `
+                <div class="item">
+                    <span>${item}</span>
+                    <button class="add-button remove-button" onclick="removeFromBag('${item}')">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function addToBag(item) {
+            if (!myBagItems.includes(item)) {
+                myBagItems.push(item);
+                updateBag();
+                updatePackingList();
+            }
+        }
+
+        function removeFromBag(item) {
+            myBagItems = myBagItems.filter(i => i !== item);
+            updateBag();
+            updatePackingList();
+        }
+
+        function updatePackingList() {
+            const packingList = document.getElementById('packingList');
+            packingList.innerHTML = Object.entries(categories)
+                .map(([category, items]) => `
+                    <div class="category">
+                        <div class="category-title">${category}</div>
+                        <div class="item-list">
+                            ${items.map(item => `
+                                <div class="item">
+                                    <span>${item}</span>
+                                    ${myBagItems.includes(item) 
+                                        ? `<button class="add-button remove-button" onclick="removeFromBag('${item}')">Remove</button>`
+                                        : `<button class="add-button" onclick="addToBag('${item}')">Add to Bag</button>`
+                                    }
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        document.getElementById('travelForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const destination = document.getElementById('destination').value;
+            const days = document.getElementById('days').value;
+            const people = document.getElementById('people').value;
+            const activities = document.getElementById('activities').value;
+            
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'block';
+            
+            try {
+                const prompt = `I am planning a trip to ${destination} for ${days} days with ${people} people. ${activities ? `We are planning to do the following activities: ${activities}.` : ''} Please provide recommendations for what items to pack and any travel tips.`;
+                
+                const result = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "mistral-large-latest",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "You are a helpful travel assistant providing packing recommendations and travel tips."
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ]
+                    })
+                });
+                
+                const data = await result.json();
+                updatePackingList();
+            } catch (error) {
+                console.error('Error getting recommendations:', error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Initialize packing list on page load
+        updatePackingList();
+    </script>
+</body>
+</html>
